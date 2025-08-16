@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diario de Partidos de Tenis</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎾 Diario de Partidos de Tenis</h1>
+    <div class="actions">
+      <button id="btn-add">+ Partido</button>
+      <button id="btn-export-json">Exportar JSON</button>
+      <button id="btn-export-csv">Exportar CSV</button>
+      <label class="import-label">
+        Importar JSON
+        <input type="file" id="file-import-json" accept=".json" hidden>
+      </label>
+      <label class="import-label">
+        Importar CSV
+        <input type="file" id="file-import-csv" accept=".csv" hidden>
+      </label>
+    </div>
+  </header>
+
+  <section class="filters">
+    <div class="filter-row">
+      <input id="search" placeholder="Buscar por rival, notas o tags…" />
+      <select id="f-superficie">
+        <option value="">Todas las superficies</option>
+        <option value="Dura">Dura</option>
+        <option value="Arcilla">Arcilla</option>
+        <option value="Pasto">Pasto</option>
+        <option value="Sintética">Sintética</option>
+      </select>
+      <select id="f-resultado">
+        <option value="">Todos los resultados</option>
+        <option value="W">Victoria</option>
+        <option value="L">Derrota</option>
+        <option value="RET">Retiro</option>
+      </select>
+      <input id="f-desde" type="date" />
+      <input id="f-hasta" type="date" />
+      <button id="btn-clear-filters" title="Limpiar filtros">Limpiar</button>
+    </div>
+  </section>
+
+  <section class="stats" id="stats">
+    <div class="card">
+      <div class="kpi-label">Win rate global</div>
+      <div class="kpi-value" id="kpi-winrate">—</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">Win rate por superficie</div>
+      <div class="kpi-value small" id="kpi-superficie">—</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">Racha actual</div>
+      <div class="kpi-value" id="kpi-streak">—</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">Duración prom.</div>
+      <div class="kpi-value" id="kpi-duracion">—</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">RPE promedio</div>
+      <div class="kpi-value" id="kpi-rpe">—</div>
+    </div>
+  </section>
+
+  <section class="list">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Formato</th>
+          <th>Rival</th>
+          <th>Superficie</th>
+          <th>Sets</th>
+          <th>Resultado</th>
+          <th>Duración</th>
+          <th>RPE</th>
+          <th>Notas/Tags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+
+  <dialog id="dlg">
+    <form id="frm" method="dialog">
+      <h2 id="dlg-title">Nuevo partido</h2>
+      <div class="grid">
+        <label>Fecha
+          <input type="date" id="fecha" required />
+        </label>
+        <label>Hora inicio (opcional)
+          <input type="time" id="hora_inicio" />
+        </label>
+        <label>Duración (min)
+          <input type="number" id="duracion_min" min="0" step="1" placeholder="Ej. 90" />
+        </label>
+        <label>Rival
+          <input type="text" id="rival" placeholder="Nombre del rival" />
+        </label>
+        <label>Superficie
+          <select id="superficie">
+            <option value="">—</option>
+            <option>Dura</option>
+            <option>Arcilla</option>
+            <option>Pasto</option>
+            <option>Sintética</option>
+          </select>
+        </label>
+        <label>Ubicación (opcional)
+          <input type="text" id="ubicacion" placeholder="Club, ciudad…" />
+        </label>
+        <label>Formato
+          <select id="formato">
+            <option value="BO3_TB">Mejor de 3 sets, TB a 6–6 (estándar)</option>
+            <option value="BO3_STB">Mejor de 3, super tie-break (10) como 3er set</option>
+            <option value="PRO8">Pro set a 8 juegos (australiano)</option>
+            <option value="SET6">Set único a 6 juegos</option>
+          </select>
+        </label>
+        <label>RPE (1–10)
+          <input type="number" id="rpe" min="1" max="10" step="1" />
+        </label>
+        <label>Tags
+          <input type="text" id="tags" placeholder="torneo, amistoso, clase…" />
+        </label>
+      </div>
+
+      <fieldset class="sets">
+        <legend>Marcador por set</legend>
+        <div id="sets-container"></div>
+        <button type="button" id="btn-add-set">+ Set</button>
+        <button type="button" id="btn-clear-sets">Limpiar sets</button>
+      </fieldset>
+
+      <label>Notas
+        <textarea id="notas" rows="3" placeholder="Observaciones, sensaciones, puntos clave…"></textarea>
+      </label>
+
+      <menu class="dialog-actions">
+        <button type="reset" id="btn-cancel">Cancelar</button>
+        <button id="btn-save" value="save" class="primary">Guardar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <footer class="footer">
+    <span>Hecho para ti • 2025-08-16</span>
+    <span class="version">v0.1.0</span>
+    <button id="btn-novedades" class="linklike">Novedades</button>
+  </footer>
+
+  <dialog id="dlg-novedades">
+    <h3>Novedades v0.1.0</h3>
+    <ul>
+      <li>MVP con registro rápido, filtros y 5 KPIs clave.</li>
+      <li>Formatos: BO3 con TB, BO3 con Super TB, Pro set a 8, Set único a 6.</li>
+      <li>Importación/Exportación JSON y CSV.</li>
+      <li>Auto-guardado local, edición y borrado por fila.</li>
+      <li>Interfaz en español.</li>
+    </ul>
+    <p>Backlog (próximas versiones): dobles, métricas punto a punto, estado físico (isquios/muslos, sueño, pesas), PWA instalable, plantillas y atajos inteligentes.</p>
+    <menu class="dialog-actions">
+      <button id="btn-close-nov">Cerrar</button>
+    </menu>
+  </dialog>
+
+  <script>const APP_VERSION = "v0.1.0";</script>
+  <script src="script.js"></script>
+</body>
+</html>
