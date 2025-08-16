@@ -12,6 +12,7 @@ function load(){
 function save(){
   localStorage.setItem(KEY, JSON.stringify(matches));
   render();
+  toast("Guardado ✅");
 }
 
 // Elements
@@ -32,6 +33,27 @@ document.getElementById('btn-clear-filters').addEventListener('click', ()=>{
   fSearch.value = ""; fSuperficie.value=""; fResultado.value="";
   fDesde.value=""; fHasta.value="";
   render();
+});
+
+// Sample data
+document.getElementById('btn-sample').addEventListener('click', ()=>{
+  const sample = {
+    id: uid(),
+    fecha: new Date().toISOString().slice(0,10),
+    hora_inicio: "11:00",
+    duracion_min: 95,
+    rival: "Rival de Prueba",
+    superficie: "Arcilla",
+    ubicacion: "Club",
+    formato: "BO3_STB",
+    rpe: 7,
+    tags: "amistoso",
+    notas: "Saqué bien, drive sólido. Fallé revés cruzado.",
+    sets: [{me:6,rival:3,tb:""},{me:4,rival:6,tb:""},{me:10,rival:7,tb:"STB"}]
+  };
+  sample.resultado = computeResult(sample.sets);
+  matches.push(sample);
+  save();
 });
 
 // Import/Export
@@ -62,12 +84,11 @@ document.getElementById('btn-save').addEventListener('click', (e)=>{
   e.preventDefault();
   saveFromForm();
 });
-// Also handle Enter key submits
+// Enter key submit support
 frm.addEventListener('submit', (e)=>{
   e.preventDefault();
   saveFromForm();
 });
-
 
 // Render
 function render(){
@@ -109,7 +130,7 @@ function renderKPIs(rows){
   }).join('\n');
   document.getElementById('kpi-superficie').textContent = surfTxt || '—';
 
-  // Racha actual (toma orden cronológico por fecha)
+  // Racha actual (orden cronológico por fecha)
   const sorted = [...rows].sort((a,b)=> (a.fecha||"") < (b.fecha||"") ? -1 : 1);
   let streak=0, type=null;
   for(let i=sorted.length-1;i>=0;i--){
@@ -198,7 +219,6 @@ function openDialog(editing=null){
     dlg.dataset.editing = "";
   }
 }
-window.edit = openDialog;
 
 function addSetRow(me="", rival="", tb=""){
   const row = document.createElement('div');
@@ -251,7 +271,6 @@ function saveFromForm(){
 
   // Validación ligera
   if(!m.fecha){ alert("La fecha es obligatoria."); return; }
-  if(m.sets.length===0){ if(!confirm("No agregaste sets. ¿Guardar de todos modos?")) return; }
 
   const idx = matches.findIndex(x=>x.id===m.id);
   if(idx>=0) matches[idx] = m; else matches.push(m);
@@ -259,7 +278,8 @@ function saveFromForm(){
   dlg.close();
 }
 
-function edit(id){ openDialog(id); }
+// Global ops
+window.edit = openDialog;
 window.delItem = function(id){
   if(!confirm("¿Borrar este partido?")) return;
   matches = matches.filter(x=>x.id!==id);
@@ -295,7 +315,6 @@ async function importJSON(ev){
   try{
     const data = JSON.parse(text);
     if(!Array.isArray(data)) throw new Error("El JSON debe ser un arreglo.");
-    // merge by id (keep newer by fecha if duplicate)
     const map = Object.fromEntries(matches.map(m=>[m.id,m]));
     for(const item of data){
       if(item && item.id){
@@ -343,7 +362,6 @@ async function importCSV(ev){
       if(!obj.resultado) obj.resultado = computeResult(obj.sets);
       arr.push(obj);
     }
-    // merge
     const map = Object.fromEntries(matches.map(m=>[m.id,m]));
     for(const item of arr){
       map[item.id] = item;
@@ -378,7 +396,6 @@ function parseCSVLine(line){
   return out;
 }
 function parseSets(text){
-  // "6-4 | 4-6 | 10-7(TB)"
   const parts = text.split("|").map(s=>s.trim()).filter(Boolean);
   const arr = [];
   for(const p of parts){
@@ -388,6 +405,16 @@ function parseSets(text){
     }
   }
   return arr;
+}
+
+// Toast
+let toastTimer=null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.hidden = true; }, 1500);
 }
 
 // Initial paint
