@@ -62,6 +62,12 @@ document.getElementById('btn-save').addEventListener('click', (e)=>{
   e.preventDefault();
   saveFromForm();
 });
+// Also handle Enter key submits
+frm.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  saveFromForm();
+});
+
 
 // Render
 function render(){
