@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Diario de Partidos de Tenis</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=v0.1.3" />
 </head>
 <body>
   <header class="app-header">
@@ -22,6 +22,7 @@
         Importar CSV
         <input type="file" id="file-import-csv" accept=".csv" hidden>
       </label>
+      <button id="btn-reset" title="Borrar datos locales y recargar">Reset datos</button>
     </div>
   </header>
 
@@ -155,24 +156,24 @@
   <div id="toast" class="toast" hidden>Guardado ✅</div>
 
   <footer class="footer">
-    <span>Hecho para ti • 2025-08-16</span>
-    <span class="version">v0.1.2</span>
+    <span>Hecho para ti • 2025-08-17</span>
+    <span class="version">v0.1.3</span>
     <button id="btn-novedades" class="linklike">Novedades</button>
   </footer>
 
   <dialog id="dlg-novedades">
-    <h3>Novedades v0.1.2</h3>
+    <h3>Novedades v0.1.3</h3>
     <ul>
-      <li>Fix total del Guardar: sin <code>method="dialog"</code>, botón type="button" + submit handler.</li>
-      <li>Toast de confirmación y botón “Cargar ejemplo”.</li>
-      <li>MVP con formatos BO3 TB, BO3 Súper TB, Pro8, Set a 6.</li>
+      <li>Solución tipo “suplementos”: botón <b>Reset datos</b> y nueva clave de almacenamiento.</li>
+      <li>Cache-busting en CSS/JS (<code>?v=v0.1.3</code>).</li>
+      <li>Más robustez en inicialización y errores.</li>
     </ul>
     <menu class="dialog-actions">
       <button id="btn-close-nov">Cerrar</button>
     </menu>
   </dialog>
 
-  <script>const APP_VERSION = "v0.1.2";</script>
-  <script src="script.js"></script>
+  <script>const APP_VERSION = "v0.1.3";</script>
+  <script src="script.js?v=v0.1.3" defer></script>
 </body>
 </html>

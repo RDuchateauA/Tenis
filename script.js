@@ -1,13 +1,37 @@
 
-// Storage
-const KEY = "tennis_matches_v1";
+// Safer init with defer and error reporting
+window.addEventListener('error', (e)=>{
+  console.error('Error global:', e.message);
+});
+
+(() => {
+// Storage key bump + migration
+const OLD_KEY = "tennis_matches_v1";
+const KEY = "tennis_matches_v2"; // new key to avoid collisions/corrupt data
 let matches = load();
 
 function load(){
   try{
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  }catch(e){ console.error(e); return []; }
+    const rawNew = localStorage.getItem(KEY);
+    if(rawNew){
+      return JSON.parse(rawNew);
+    }
+    const rawOld = localStorage.getItem(OLD_KEY);
+    if(rawOld){
+      const data = JSON.parse(rawOld);
+      localStorage.setItem(KEY, JSON.stringify(data));
+      localStorage.removeItem(OLD_KEY);
+      return data;
+    }
+    return [];
+  }catch(e){
+    console.error('Error al cargar almacenamiento. Limpiando...', e);
+    try{
+      localStorage.removeItem(KEY);
+      localStorage.removeItem(OLD_KEY);
+    }catch(_){}
+    return [];
+  }
 }
 function save(){
   localStorage.setItem(KEY, JSON.stringify(matches));
@@ -27,6 +51,17 @@ const fSuperficie = document.getElementById('f-superficie');
 const fResultado = document.getElementById('f-resultado');
 const fDesde = document.getElementById('f-desde');
 const fHasta = document.getElementById('f-hasta');
+
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  if(confirm('Esto borrará los datos locales de la app y recargará la página. ¿Continuar?')){
+    try{
+      localStorage.removeItem(KEY);
+      localStorage.removeItem(OLD_KEY);
+      sessionStorage.clear();
+    }catch(_){}
+    location.reload();
+  }
+});
 
 document.getElementById('btn-add').addEventListener('click', ()=>openDialog());
 document.getElementById('btn-clear-filters').addEventListener('click', ()=>{
@@ -84,7 +119,6 @@ document.getElementById('btn-save').addEventListener('click', (e)=>{
   e.preventDefault();
   saveFromForm();
 });
-// Enter key submit support
 frm.addEventListener('submit', (e)=>{
   e.preventDefault();
   saveFromForm();
@@ -92,7 +126,13 @@ frm.addEventListener('submit', (e)=>{
 
 // Render
 function render(){
-  const filtered = getFiltered(matches);
+  let filtered=[];
+  try{
+    filtered = getFiltered(matches);
+  }catch(e){
+    console.error('Error durante render/getFiltered', e);
+    filtered = [];
+  }
   tbody.innerHTML = "";
   for(const m of filtered){
     const tr = document.createElement('tr');
@@ -117,39 +157,38 @@ function render(){
 }
 
 function renderKPIs(rows){
-  // Win rate global
-  const total = rows.length;
-  const wins = rows.filter(r=>r.resultado==='W').length;
-  document.getElementById('kpi-winrate').textContent = total? ((wins/total*100).toFixed(0)+'%') : '—';
+  try{
+    const total = rows.length;
+    const wins = rows.filter(r=>r.resultado==='W').length;
+    document.getElementById('kpi-winrate').textContent = total? ((wins/total*100).toFixed(0)+'%') : '—';
 
-  // Win rate por superficie
-  const bySurf = groupBy(rows, r=>r.superficie||'—');
-  const surfTxt = Object.entries(bySurf).map(([k,arr])=>{
-    const w = arr.filter(r=>r.resultado==='W').length;
-    return `${k}: ${arr.length? (Math.round(100*w/arr.length)+'%'):'—'}`;
-  }).join('\n');
-  document.getElementById('kpi-superficie').textContent = surfTxt || '—';
+    const bySurf = groupBy(rows, r=>r.superficie||'—');
+    const surfTxt = Object.entries(bySurf).map(([k,arr])=>{
+      const w = arr.filter(r=>r.resultado==='W').length;
+      return `${k}: ${arr.length? (Math.round(100*w/arr.length)+'%'):'—'}`;
+    }).join('\n');
+    document.getElementById('kpi-superficie').textContent = surfTxt || '—';
 
-  // Racha actual (orden cronológico por fecha)
-  const sorted = [...rows].sort((a,b)=> (a.fecha||"") < (b.fecha||"") ? -1 : 1);
-  let streak=0, type=null;
-  for(let i=sorted.length-1;i>=0;i--){
-    const r = sorted[i].resultado;
-    if(!r || r==='RET') break;
-    if(type===null){ type=r; streak=1; }
-    else if(r===type){ streak++; } else break;
+    const sorted = [...rows].sort((a,b)=> (a.fecha||"") < (b.fecha||"") ? -1 : 1);
+    let streak=0, type=null;
+    for(let i=sorted.length-1;i>=0;i--){
+      const r = sorted[i].resultado;
+      if(!r || r==='RET') break;
+      if(type===null){ type=r; streak=1; }
+      else if(r===type){ streak++; } else break;
+    }
+    document.getElementById('kpi-streak').textContent = type? `${type==='W'?'W':'L'} ${streak}` : '—';
+
+    const withDur = rows.filter(r=>Number.isFinite(Number(r.duracion_min)));
+    const avgDur = withDur.length ? Math.round(withDur.reduce((s,r)=>s+Number(r.duracion_min),0)/withDur.length) : null;
+    document.getElementById('kpi-duracion').textContent = avgDur? `${avgDur} min`:'—';
+
+    const withRpe = rows.filter(r=>Number.isFinite(Number(r.rpe)));
+    const avgRpe = withRpe.length ? (withRpe.reduce((s,r)=>s+Number(r.rpe),0)/withRpe.length).toFixed(1) : null;
+    document.getElementById('kpi-rpe').textContent = avgRpe? `${avgRpe}`:'—';
+  }catch(e){
+    console.error('Error renderKPIs', e);
   }
-  document.getElementById('kpi-streak').textContent = type? `${type==='W'?'W':'L'} ${streak}` : '—';
-
-  // Duración promedio
-  const withDur = rows.filter(r=>Number.isFinite(Number(r.duracion_min)));
-  const avgDur = withDur.length ? Math.round(withDur.reduce((s,r)=>s+Number(r.duracion_min),0)/withDur.length) : null;
-  document.getElementById('kpi-duracion').textContent = avgDur? `${avgDur} min`:'—';
-
-  // RPE promedio
-  const withRpe = rows.filter(r=>Number.isFinite(Number(r.rpe)));
-  const avgRpe = withRpe.length ? (withRpe.reduce((s,r)=>s+Number(r.rpe),0)/withRpe.length).toFixed(1) : null;
-  document.getElementById('kpi-rpe').textContent = avgRpe? `${avgRpe}`:'—';
 }
 
 function getFiltered(arr){
@@ -213,7 +252,6 @@ function openDialog(editing=null){
     (m.sets||[]).forEach(s=> addSetRow(s.me, s.rival, s.tb||''));
     dlg.dataset.editing = editing;
   }else{
-    // defaults
     document.getElementById('fecha').valueAsDate = new Date();
     document.getElementById('formato').value = 'BO3_TB';
     dlg.dataset.editing = "";
@@ -248,34 +286,38 @@ function computeResult(sets){
   for(const s of sets){
     if(s.me > s.rival) mySets++; else if(s.rival > s.me) oppSets++;
   }
-  if(mySets===oppSets) return "RET"; // indeterminado si están iguales
+  if(mySets===oppSets) return "RET";
   return mySets>oppSets ? "W" : "L";
 }
 
 function saveFromForm(){
-  const m = {
-    id: dlg.dataset.editing || uid(),
-    fecha: document.getElementById('fecha').value || "",
-    hora_inicio: document.getElementById('hora_inicio').value || "",
-    duracion_min: Number(document.getElementById('duracion_min').value||"") || "",
-    rival: document.getElementById('rival').value.trim(),
-    superficie: document.getElementById('superficie').value,
-    ubicacion: document.getElementById('ubicacion').value.trim(),
-    formato: document.getElementById('formato').value,
-    rpe: Number(document.getElementById('rpe').value||"") || "",
-    tags: document.getElementById('tags').value.trim(),
-    notas: document.getElementById('notas').value.trim(),
-    sets: collectSets()
-  };
-  m.resultado = computeResult(m.sets);
+  try{
+    const m = {
+      id: dlg.dataset.editing || uid(),
+      fecha: document.getElementById('fecha').value || "",
+      hora_inicio: document.getElementById('hora_inicio').value || "",
+      duracion_min: Number(document.getElementById('duracion_min').value||"") || "",
+      rival: document.getElementById('rival').value.trim(),
+      superficie: document.getElementById('superficie').value,
+      ubicacion: document.getElementById('ubicacion').value.trim(),
+      formato: document.getElementById('formato').value,
+      rpe: Number(document.getElementById('rpe').value||"") || "",
+      tags: document.getElementById('tags').value.trim(),
+      notas: document.getElementById('notas').value.trim(),
+      sets: collectSets()
+    };
+    m.resultado = computeResult(m.sets);
 
-  // Validación ligera
-  if(!m.fecha){ alert("La fecha es obligatoria."); return; }
+    if(!m.fecha){ alert("La fecha es obligatoria."); return; }
 
-  const idx = matches.findIndex(x=>x.id===m.id);
-  if(idx>=0) matches[idx] = m; else matches.push(m);
-  save();
-  dlg.close();
+    const idx = matches.findIndex(x=>x.id===m.id);
+    if(idx>=0) matches[idx] = m; else matches.push(m);
+    save();
+    dlg.close();
+  }catch(e){
+    console.error('Error en saveFromForm', e);
+    alert('Ocurrió un error al guardar. Prueba el botón "Reset datos" y vuelve a intentarlo.');
+  }
 }
 
 // Global ops
@@ -418,4 +460,10 @@ function toast(msg){
 }
 
 // Initial paint
-render();
+try{
+  render();
+}catch(e){
+  console.error('Error en render inicial', e);
+  alert('Hubo un problema inicial. Prueba el botón "Reset datos".');
+}
+})(); // IIFE
